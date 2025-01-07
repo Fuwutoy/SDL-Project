@@ -1,44 +1,51 @@
 #include <stdio.h>
 #include <stdbool.h>
+#include <windows.h>
 #include "inc/SDL.h"
 #include "inc/SDL_ttf.h"
 #undef main
 
 typedef struct RGB {
-    int r, g, b;
+    Uint8 r, g, b;
 } RGB;
+
+RGB getColorAt(int x, int y){
+    RGB color;
+    color.r = 0;
+    color.g = 0;
+    color.b = 0;
+
+    HDC dc = GetDC(NULL);
+    if(dc == NULL) {
+        printf("Error getting device context\n");
+        return color;
+    }
+
+    COLORREF pixelColor = GetPixel(dc, x, y);
+    color.r = GetRValue(pixelColor);
+    color.g = GetGValue(pixelColor);
+    color.b = GetBValue(pixelColor);
+
+    ReleaseDC(NULL, dc);
+    return color;
+}
 int main(int argc, char* argv[]) {
     SDL_Window *window = NULL;
     SDL_Renderer *renderer = NULL;
-    bool isMouseDownLeft = 0;
-    SDL_Rect Message_rect2;
-    Message_rect2.x = 0;
-    Message_rect2.y = 0;
-    Message_rect2.w = 350;
-    Message_rect2.h = 40;
-    RGB backgroundColor;
-    backgroundColor.r = 0;
-    backgroundColor.g = 0;
-    backgroundColor.b = 0;
-    RGB background;
-    background.r = 0;
-    background.g = 0;
-    background.b = 0;
-    RGB holdLeftColor;
-    holdLeftColor.r = 0;
-    holdLeftColor.g = 0;
-    holdLeftColor.b = 255;
-    char formatted_text[100];
-
-    printf("Enter backgrond hex values: #");
-    scanf("%02x%02x%02x", &backgroundColor.r, &backgroundColor.g, &backgroundColor.b);
-    
-    printf("Enter hold left hex values: #");
-    scanf("%02x%02x%02x", &holdLeftColor.r, &holdLeftColor.g, &holdLeftColor.b);
-
-    background.r = backgroundColor.r;
-    background.g = backgroundColor.g;
-    background.b = backgroundColor.b;
+    int mouseX;
+    int mouseY;
+    SDL_Rect Message_rectRGB;
+    Message_rectRGB.x = 0;
+    Message_rectRGB.y = 0;
+    Message_rectRGB.w = 300;
+    Message_rectRGB.h = 60;
+    SDL_Rect Message_rectHEX;
+    Message_rectHEX.x = 0;
+    Message_rectHEX.y = 50;
+    Message_rectHEX.w = 300;
+    Message_rectHEX.h = 60;
+    char formatted_textRGB[100];
+    char formatted_textHEX[100];
 
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
         printf("SDL could not initialize! SDL_Error: %s\n", SDL_GetError());
@@ -71,26 +78,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    SDL_SetRenderDrawColor(renderer, background.r, background.g, background.b, 255);
-    SDL_RenderClear(renderer);
-
     SDL_Color textColor = {255, 255, 255, 255};
-
-    snprintf(formatted_text, sizeof(formatted_text), 
-        "RGB: %d %d %d   Hex: #%02X%02X%02X",
-        background.r, background.g, background.b, 
-        background.r, background.g, background.b);
-    SDL_Surface* surfaceMessage2 = TTF_RenderText_Solid(font, formatted_text, textColor);
-
-    if (surfaceMessage2 == NULL) {
-        printf("Message could not be rendered! SDL_Error: %s\n", SDL_GetError());
-        SDL_Quit();
-        return 1;
-    }
-    
-    SDL_Texture* Message2 = SDL_CreateTextureFromSurface(renderer, surfaceMessage2);
-    SDL_RenderCopy(renderer, Message2, NULL, &Message_rect2);
-    SDL_RenderPresent(renderer);
 
     SDL_bool quit = SDL_FALSE;
     SDL_Event e;
@@ -99,61 +87,68 @@ int main(int argc, char* argv[]) {
     while (SDL_PollEvent(&e) != 0) {
         if (e.type == SDL_QUIT) {
             quit = SDL_TRUE;
-        } else if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT) {
-            isMouseDownLeft = 1;
-        } else if (e.type == SDL_MOUSEBUTTONUP && e.button.button == SDL_BUTTON_LEFT) {
-            isMouseDownLeft = 0;
         }
     }
 
-    if (isMouseDownLeft == 1){
-        background.r = holdLeftColor.r;
-        background.g = holdLeftColor.g;
-        background.b = holdLeftColor.b;
+    POINT cursorPos;
+    GetCursorPos(&cursorPos);
+    mouseX = cursorPos.x;
+    mouseY = cursorPos.y;
 
-    } else {
-        background.r = backgroundColor.r;
-        background.g = backgroundColor.g;
-        background.b = backgroundColor.b;
+    RGB color = getColorAt(mouseX, mouseY);
 
-    }
+    snprintf(formatted_textRGB, sizeof(formatted_textRGB), 
+        "RGB: %d %d %d",
+        color.r, color.g, color.b);
+    snprintf(formatted_textHEX, sizeof(formatted_textHEX), 
+        "HEX: #%02x%02x%02x",
+        color.r, color.g, color.b);
 
-    SDL_SetRenderDrawColor(renderer, background.r, background.g, background.b, 255);
+    SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, 255);
     SDL_RenderClear(renderer);
 
-    snprintf(formatted_text, sizeof(formatted_text), 
-        "RGB: %d %d %d   Hex: #%02X%02X%02X", 
-        background.r, background.g, background.b, 
-        background.r, background.g, background.b);
-
-    SDL_Surface* surfaceMessage2 = TTF_RenderText_Solid(font, formatted_text, textColor);
-    if (surfaceMessage2 == NULL) {
+    SDL_Surface* surfaceMessageRGB = TTF_RenderText_Solid(font, formatted_textRGB, textColor);
+    SDL_Surface* surfaceMessageHEX = TTF_RenderText_Solid(font, formatted_textHEX, textColor);
+    if (surfaceMessageRGB == NULL) {
+        printf("Surface creation failed: %s\n", TTF_GetError());
+        quit = SDL_TRUE;
+        break;
+    }
+    if (surfaceMessageHEX == NULL) {
         printf("Surface creation failed: %s\n", TTF_GetError());
         quit = SDL_TRUE;
         break;
     }
 
-    SDL_Texture* Message2 = SDL_CreateTextureFromSurface(renderer, surfaceMessage2);
-    if (Message2 == NULL) {
+    SDL_Texture* MessageRGB = SDL_CreateTextureFromSurface(renderer, surfaceMessageRGB);
+    SDL_Texture* MessageHEX = SDL_CreateTextureFromSurface(renderer, surfaceMessageHEX);
+    if (MessageRGB == NULL) {
         printf("Texture creation failed: %s\n", SDL_GetError());
-        SDL_FreeSurface(surfaceMessage2);
+        SDL_FreeSurface(surfaceMessageRGB);
+        quit = SDL_TRUE;
+        break;
+    }
+    if (MessageHEX == NULL) {
+        printf("Texture creation failed: %s\n", SDL_GetError());
+        SDL_FreeSurface(surfaceMessageHEX);
         quit = SDL_TRUE;
         break;
     }
 
-    SDL_RenderCopy(renderer, Message2, NULL, &Message_rect2);
+    SDL_RenderCopy(renderer, MessageRGB, NULL, &Message_rectRGB);
+    SDL_RenderCopy(renderer, MessageHEX, NULL, &Message_rectHEX);
     SDL_RenderPresent(renderer);
 
-    SDL_FreeSurface(surfaceMessage2);
-    SDL_DestroyTexture(Message2);
+    SDL_FreeSurface(surfaceMessageRGB);
+    SDL_FreeSurface(surfaceMessageHEX);
+    SDL_DestroyTexture(MessageRGB);
+    SDL_DestroyTexture(MessageHEX);
     }
 
     TTF_CloseFont(font);
     TTF_Quit();
     SDL_DestroyWindow(window);
     SDL_DestroyRenderer(renderer);
-    SDL_FreeSurface(surfaceMessage2);
-    SDL_DestroyTexture(Message2);
     SDL_Quit();
     return 0;
 }
