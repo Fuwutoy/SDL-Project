@@ -71,14 +71,14 @@ int main(int argc, char* argv[]) {
         SDL_Quit();
         return 1;
     }
-    TTF_Font *font = TTF_OpenFont("assets\\Inter_28pt-Light.ttf", 15);
+    TTF_Font *font = TTF_OpenFont("assets\\Inter_28pt-Light.ttf", 50);
     if (font == NULL) {
         printf("Font could not be loaded! SDL_Error: %s\n", TTF_GetError());
         SDL_Quit();
         return 1;
     }
 
-    SDL_Color textColor = {255, 255, 255, 255};
+    SDL_Color textColor = {0, 0, 0, 255};
 
     SDL_bool quit = SDL_FALSE;
     SDL_Event e;
@@ -143,6 +143,8 @@ int main(int argc, char* argv[]) {
     SDL_FreeSurface(surfaceMessageHEX);
     SDL_DestroyTexture(MessageRGB);
     SDL_DestroyTexture(MessageHEX);
+
+    SDL_Delay(16);
     }
 
     TTF_CloseFont(font);
